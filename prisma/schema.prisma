@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum GroupMemberStatus {
+  REQUESTED
+  APPROVED
+  JOINED
+  ATTENDED
+  NO_SHOW
+  REJECTED
+}
+
+enum EventStatus {
+  UPCOMING
+  COMPLETED
+  CANCELLED
+}
+
+enum GroupStatus {
+  OPEN
+  FULL
+  CLOSED
+  COMPLETED
+}
+
+model User {
+  id           String           @id @default(cuid())
+  email        String           @unique
+  passwordHash String
+  name         String
+  role         Role             @default(USER)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  preference   UserPreference?
+  memberships  GroupMember[]
+  feedback     Feedback[]
+
+  @@index([role])
+}
+
+model UserPreference {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  ageRange           String
+  city               String
+  neighborhood       String
+  goals              String[]
+  activities         String[]
+  currentLevel       String
+  targetGoal         String
+  availability       String[]
+  preferredGroupSize Int
+  vibe               String
+  comfortPreference  String
+  phone              String?
+  bio                String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([city, neighborhood])
+  @@index([currentLevel])
+}
+
+model Goal {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  groups    Group[]
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  groups    Group[]
+}
+
+model Group {
+  id           String        @id @default(cuid())
+  title        String
+  goalId       String
+  activityId   String
+  city         String
+  neighborhood String
+  level        String
+  ageRange     String
+  vibe         String
+  maxMembers   Int
+  schedule     String
+  description  String
+  status       GroupStatus   @default(OPEN)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  goal         Goal          @relation(fields: [goalId], references: [id])
+  activity     Activity      @relation(fields: [activityId], references: [id])
+  members      GroupMember[]
+  events       Event[]
+
+  @@index([city, neighborhood, status])
+  @@index([level, vibe])
+}
+
+model GroupMember {
+  id        String            @id @default(cuid())
+  userId    String
+  groupId   String
+  status    GroupMemberStatus @default(REQUESTED)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group     Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+  @@index([groupId, status])
+}
+
+model Event {
+  id           String      @id @default(cuid())
+  groupId      String
+  title        String
+  locationName String
+  address      String
+  startTime    DateTime
+  endTime      DateTime
+  description  String
+  hostName     String
+  status       EventStatus @default(UPCOMING)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  group        Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  feedback     Feedback[]
+
+  @@index([groupId, startTime])
+  @@index([status, startTime])
+}
+
+model Feedback {
+  id                String   @id @default(cuid())
+  userId            String
+  eventId           String
+  rating            Int
+  comfortScore      Int
+  groupMatchScore   Int
+  wouldAttendAgain  Boolean
+  comment           String?
+  wouldInviteFriend Boolean
+  createdAt         DateTime @default(now())
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event             Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@index([eventId])
+}

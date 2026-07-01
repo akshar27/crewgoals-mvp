@@ -1,0 +1,38 @@
+# dependencies
+node_modules/
+mobile/node_modules/
+
+# build outputs
+.next/
+out/
+dist/
+build/
+coverage/
+
+# local env files
+.env
+.env.*
+!.env.example
+!mobile/.env.example
+mobile/.env
+mobile/.env.*
+
+# TypeScript / Next cache
+*.tsbuildinfo
+next-env.d.ts
+
+# Expo / React Native
+.expo/
+mobile/.expo/
+*.ipa
+*.apk
+*.aab
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# local scratch folders from Codex workspace
+work/
+outputs/

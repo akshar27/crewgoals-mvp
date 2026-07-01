@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "CrewGoals",
+    "slug": "crewgoals",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "crewgoals",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.crewgoals.mobile"
+    },
+    "android": {
+      "package": "com.crewgoals.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#dff4e9"
+      }
+    },
+    "extra": {
+      "apiUrl": "http://localhost:3000"
+    }
+  }
+}

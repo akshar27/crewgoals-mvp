@@ -1,0 +1,129 @@
+import * as SecureStore from "expo-secure-store";
+
+const TOKEN_KEY = "crewgoals_token";
+
+export type User = {
+  id: string;
+  email: string;
+  name: string;
+  role: "USER" | "ADMIN";
+};
+
+export type Group = {
+  id: string;
+  title: string;
+  city: string;
+  neighborhood: string;
+  level: string;
+  ageRange: string;
+  vibe: string;
+  maxMembers: number;
+  schedule: string;
+  description: string;
+  status: string;
+  score?: number;
+  goal: { name: string };
+  activity: { name: string };
+  _count?: { members: number };
+};
+
+export type EventItem = {
+  id: string;
+  groupId: string;
+  title: string;
+  locationName: string;
+  address: string;
+  startTime: string;
+  endTime: string;
+  description: string;
+  hostName: string;
+  status: string;
+  group?: { id: string; title: string };
+};
+
+export type Preference = {
+  name?: string;
+  ageRange: string;
+  city: string;
+  neighborhood: string;
+  goals: string[];
+  activities: string[];
+  currentLevel: string;
+  targetGoal: string;
+  availability: string[];
+  preferredGroupSize: number;
+  vibe: string;
+  comfortPreference: string;
+  phone?: string;
+  bio?: string;
+};
+
+export function apiBase() {
+  return process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+}
+
+export async function saveToken(token: string) {
+  await SecureStore.setItemAsync(TOKEN_KEY, token);
+}
+
+export async function getToken() {
+  return SecureStore.getItemAsync(TOKEN_KEY);
+}
+
+export async function clearToken() {
+  await SecureStore.deleteItemAsync(TOKEN_KEY);
+}
+
+export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = await getToken();
+  const url = `${apiBase()}${path}`;
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers ?? {})
+      }
+    });
+  } catch {
+    throw new Error(`Cannot reach backend at ${apiBase()}. Make sure npm run dev is running and your iPhone is on the same Wi-Fi.`);
+  }
+
+  const text = await response.text();
+  const body = text ? tryParseJson(text) : {};
+  if (!response.ok) {
+    const message = typeof body.error === "string" ? body.error : `Backend request failed with status ${response.status}.`;
+    throw new Error(message);
+  }
+  return body as T;
+}
+
+function tryParseJson(text: string): { error?: unknown } {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {};
+  }
+}
+
+export async function login(email: string, password: string) {
+  const body = await api<{ user: User; token: string }>("/api/mobile/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password })
+  });
+  await saveToken(body.token);
+  return body.user;
+}
+
+export async function signup(name: string, email: string, password: string) {
+  const body = await api<{ user: User; token: string }>("/api/mobile/auth/signup", {
+    method: "POST",
+    body: JSON.stringify({ name, email, password })
+  });
+  await saveToken(body.token);
+  return body.user;
+}
