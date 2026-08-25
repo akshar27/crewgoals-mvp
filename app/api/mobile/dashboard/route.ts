@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   const user = await getMobileUser(request);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const [preference, groups, memberships, events] = await Promise.all([
+  const [preference, groups, memberships, events, unreadNotifications] = await Promise.all([
     prisma.userPreference.findUnique({ where: { userId: user.id } }),
     prisma.group.findMany({
       include: {
@@ -25,9 +25,10 @@ export async function GET(request: NextRequest) {
       include: { group: true },
       orderBy: { startTime: "asc" },
       take: 8
-    })
+    }),
+    prisma.notification.count({ where: { userId: user.id, readAt: null } })
   ]);
 
   const recommendedGroups = recommendGroups(preference, groups.map((group) => ({ ...group, memberCount: group._count.members }))).slice(0, 8);
-  return NextResponse.json({ user, preference, recommendedGroups, memberships, events }, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ user, preference, recommendedGroups, memberships, events, unreadNotifications }, { headers: { "Cache-Control": "no-store" } });
 }

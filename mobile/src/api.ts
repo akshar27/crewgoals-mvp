@@ -59,7 +59,7 @@ export type Preference = {
 };
 
 export function apiBase() {
-  return process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+  return (process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000").replace(/\/+$/, "");
 }
 
 export async function saveToken(token: string) {
@@ -77,11 +77,14 @@ export async function clearToken() {
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = await getToken();
   const url = `${apiBase()}${path}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
   let response: Response;
   try {
     response = await fetch(url, {
       ...options,
       cache: "no-store",
+      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
         "Cache-Control": "no-store",
@@ -89,20 +92,32 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
         ...(options.headers ?? {})
       }
     });
-  } catch {
-    throw new Error(`Cannot reach backend at ${apiBase()}. Make sure npm run dev is running and your iPhone is on the same Wi-Fi.`);
+  } catch (error) {
+    const timedOut = error instanceof Error && error.name === "AbortError";
+    throw new Error(
+      timedOut
+        ? `Backend did not respond within 15 seconds at ${apiBase()}.`
+        : `Cannot reach backend at ${apiBase()}. Check internet connection and EXPO_PUBLIC_API_URL.`
+    );
+  } finally {
+    clearTimeout(timeout);
   }
 
   const text = await response.text();
   const body = text ? tryParseJson(text) : {};
   if (!response.ok) {
-    const message = typeof body.error === "string" ? body.error : `Backend request failed with status ${response.status}.`;
+    const message =
+      typeof body.error === "string"
+        ? body.error
+        : Array.isArray(body.details)
+          ? body.details.join("\n")
+          : `Backend request failed with status ${response.status}.`;
     throw new Error(message);
   }
   return body as T;
 }
 
-function tryParseJson(text: string): { error?: unknown } {
+function tryParseJson(text: string): { error?: unknown; details?: unknown } {
   try {
     return JSON.parse(text);
   } catch {

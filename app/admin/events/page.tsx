@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { PageShell, Panel, SubmitButton, Badge } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
+import { notifyUsers } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { cleanText, eventSchema, formValues } from "@/lib/validation";
 
@@ -27,9 +28,44 @@ async function saveEvent(formData: FormData) {
   if (!parsed.success || parsed.data.endTime <= parsed.data.startTime) redirect("/admin/events?error=invalid");
   const id = String(formData.get("id") ?? "");
   const data = { ...parsed.data, description: cleanText(parsed.data.description) };
-  if (id) await prisma.event.update({ where: { id }, data });
-  else await prisma.event.create({ data });
+  if (id) {
+    const previous = await prisma.event.findUnique({ where: { id }, include: { group: true } });
+    const event = await prisma.event.update({ where: { id }, data, include: { group: true } });
+    if (previous?.status !== "COMPLETED" && event.status === "COMPLETED") {
+      await notifyGroupMembers(event.groupId, {
+        type: "EVENT_REMINDER",
+        title: `${event.title} is complete`,
+        body: "If you attended, feedback is now available once your attendance is marked.",
+        data: { eventId: event.id, groupId: event.groupId }
+      });
+    }
+  } else {
+    const event = await prisma.event.create({ data, include: { group: true } });
+    await notifyGroupMembers(event.groupId, {
+      type: "EVENT_CREATED",
+      title: "New event added",
+      body: `${event.title} was added to ${event.group.title}.`,
+      data: { eventId: event.id, groupId: event.groupId }
+    });
+  }
   revalidatePath("/admin/events");
+}
+
+async function sendEventReminder(formData: FormData) {
+  "use server";
+  await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  const event = await prisma.event.findUnique({ where: { id }, include: { group: true } });
+  if (!event) redirect("/admin/events?error=invalid");
+
+  await notifyGroupMembers(event.groupId, {
+    type: "EVENT_REMINDER",
+    title: `Reminder: ${event.title}`,
+    body: `${event.group.title} meets ${event.startTime.toLocaleString()}.`,
+    data: { eventId: event.id, groupId: event.groupId }
+  });
+  revalidatePath("/admin/events");
+  redirect("/admin/events?reminder=sent");
 }
 
 async function deleteEvent(formData: FormData) {
@@ -39,9 +75,9 @@ async function deleteEvent(formData: FormData) {
   revalidatePath("/admin/events");
 }
 
-export default async function AdminEventsPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default async function AdminEventsPage({ searchParams }: { searchParams: Promise<{ error?: string; reminder?: string }> }) {
   await requireAdmin();
-  const { error } = await searchParams;
+  const { error, reminder } = await searchParams;
   const [events, groups] = await Promise.all([
     prisma.event.findMany({ include: { group: true }, orderBy: { startTime: "desc" } }),
     prisma.group.findMany({ orderBy: { title: "asc" } })
@@ -50,6 +86,7 @@ export default async function AdminEventsPage({ searchParams }: { searchParams: 
     <PageShell>
       <h1 className="text-3xl font-black">Manage events</h1>
       {error ? <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">Event details were invalid.</p> : null}
+      {reminder ? <p className="mt-4 rounded-md bg-mint px-3 py-2 text-sm font-semibold text-moss">Reminder sent to approved group members.</p> : null}
       <Panel className="mt-6">
         <h2 className="text-xl font-bold">Create event</h2>
         <EventForm groups={groups} />
@@ -65,11 +102,37 @@ export default async function AdminEventsPage({ searchParams }: { searchParams: 
               <summary className="cursor-pointer text-sm font-semibold text-moss">Edit event</summary>
               <EventForm event={event} groups={groups} />
             </details>
+            <form action={sendEventReminder} className="mt-3">
+              <input type="hidden" name="id" value={event.id} />
+              <button className="text-sm font-semibold text-moss">Send reminder</button>
+            </form>
             <form action={deleteEvent} className="mt-3"><input type="hidden" name="id" value={event.id} /><button className="text-sm font-semibold text-red-700">Delete event</button></form>
           </Panel>
         ))}
       </section>
     </PageShell>
+  );
+}
+
+async function notifyGroupMembers(
+  groupId: string,
+  message: {
+    type: "EVENT_CREATED" | "EVENT_REMINDER";
+    title: string;
+    body: string;
+    data: { eventId: string; groupId: string };
+  }
+) {
+  const memberships = await prisma.groupMember.findMany({
+    where: { groupId, status: { in: ["APPROVED", "JOINED", "ATTENDED"] } },
+    select: { userId: true }
+  });
+
+  await notifyUsers(
+    memberships.map((membership) => ({
+      userId: membership.userId,
+      ...message
+    }))
   );
 }
 

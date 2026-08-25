@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { PageShell, Panel, SubmitButton, Badge } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
+import { notifyUser } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -22,10 +23,32 @@ async function updateStatus(formData: FormData) {
     redirect("/admin/users?error=invalid-status");
   }
 
-  await prisma.groupMember.update({
+  const membership = await prisma.groupMember.update({
     where: { id: membershipId },
-    data: { status: nextStatus }
+    data: { status: nextStatus },
+    include: { group: true, user: true }
   });
+
+  if (nextStatus === "APPROVED") {
+    await notifyUser({
+      userId: membership.userId,
+      type: "GROUP_APPROVED",
+      title: "Group request approved",
+      body: `You're approved for ${membership.group.title}.`,
+      data: { groupId: membership.groupId }
+    });
+  }
+
+  if (nextStatus === "ATTENDED") {
+    await notifyUser({
+      userId: membership.userId,
+      type: "ATTENDANCE_MARKED",
+      title: "Attendance marked",
+      body: `You were marked attended for ${membership.group.title}. Feedback may be available after the event is completed.`,
+      data: { groupId: membership.groupId }
+    });
+  }
+
   revalidatePath("/admin/users");
   redirect(`/admin/users?updated=${nextStatus.toLowerCase()}`);
 }

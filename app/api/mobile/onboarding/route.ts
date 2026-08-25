@@ -8,7 +8,10 @@ export async function PUT(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const parsed = onboardingSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Please complete the required fields." }, { status: 400 });
+  if (!parsed.success) {
+    const details = parsed.error.issues.map((issue) => `${issue.path.join(".") || "profile"}: ${issue.message}`);
+    return NextResponse.json({ error: details.join("\n") || "Please complete the required fields.", details }, { status: 400 });
+  }
 
   const { name, ...preferenceInput } = parsed.data;
   const preferenceData = {

@@ -34,6 +34,14 @@ enum GroupStatus {
   COMPLETED
 }
 
+enum NotificationType {
+  GROUP_APPROVED
+  EVENT_CREATED
+  EVENT_REMINDER
+  ATTENDANCE_MARKED
+  FRIEND_INVITE
+}
+
 model User {
   id           String           @id @default(cuid())
   email        String           @unique
@@ -45,6 +53,8 @@ model User {
   preference   UserPreference?
   memberships  GroupMember[]
   feedback     Feedback[]
+  devices      UserDevice[]
+  notifications Notification[]
 
   @@index([role])
 }
@@ -162,4 +172,31 @@ model Feedback {
 
   @@unique([userId, eventId])
   @@index([eventId])
+}
+
+model UserDevice {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@index([type])
 }

@@ -8,7 +8,10 @@
     "scheme": "crewgoals",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.crewgoals.mobile"
+      "bundleIdentifier": "com.crewgoals.mobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.crewgoals.mobile",
@@ -16,8 +19,19 @@
         "backgroundColor": "#dff4e9"
       }
     },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "color": "#426653"
+        }
+      ]
+    ],
     "extra": {
-      "apiUrl": "http://localhost:3000"
+      "apiUrl": "http://localhost:3000",
+      "eas": {
+        "projectId": "4aa154ca-4b9e-4c6b-abb0-313db53ff6d9"
+      }
     }
   }
 }
