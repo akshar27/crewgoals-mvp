@@ -27,6 +27,9 @@ jobs:
 
   mobile:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -35,6 +38,6 @@ jobs:
           cache: npm
           cache-dependency-path: mobile/package-lock.json
       - run: npm ci
-        working-directory: mobile
       - run: npm run typecheck
-        working-directory: mobile
+      - run: npm test
+      - run: npx expo-doctor
