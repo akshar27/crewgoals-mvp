@@ -42,6 +42,17 @@ enum NotificationType {
   FRIEND_INVITE
 }
 
+enum ReportStatus {
+  OPEN
+  REVIEWED
+  RESOLVED
+}
+
+enum AttendanceStatus {
+  ATTENDED
+  NO_SHOW
+}
+
 model User {
   id           String           @id @default(cuid())
   email        String           @unique
@@ -55,6 +66,15 @@ model User {
   feedback     Feedback[]
   devices      UserDevice[]
   notifications Notification[]
+  passwordResets PasswordResetToken[]
+  emailLogs    EmailLog[]
+  comments     EventComment[]
+  reportsMade  SafetyReport[] @relation("reportsMade")
+  reportsReceived SafetyReport[] @relation("reportsReceived")
+  blocksMade   UserBlock[] @relation("blocksMade")
+  blockedBy    UserBlock[] @relation("blockedBy")
+  attendance   EventAttendance[]
+  inviteLinks  InviteLink[]
 
   @@index([role])
 }
@@ -73,6 +93,7 @@ model UserPreference {
   preferredGroupSize Int
   vibe               String
   comfortPreference  String
+  photoUrl           String?
   phone              String?
   bio                String?
   createdAt          DateTime @default(now())
@@ -117,6 +138,7 @@ model Group {
   activity     Activity      @relation(fields: [activityId], references: [id])
   members      GroupMember[]
   events       Event[]
+  inviteLinks  InviteLink[]
 
   @@index([city, neighborhood, status])
   @@index([level, vibe])
@@ -151,6 +173,8 @@ model Event {
   updatedAt    DateTime    @updatedAt
   group        Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
   feedback     Feedback[]
+  comments     EventComment[]
+  attendance   EventAttendance[]
 
   @@index([groupId, startTime])
   @@index([status, startTime])
@@ -199,4 +223,104 @@ model Notification {
 
   @@index([userId, readAt, createdAt])
   @@index([type])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model EmailLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  to        String
+  subject   String
+  body      String
+  status    String   @default("QUEUED")
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+model EventComment {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  body      String
+  createdAt DateTime @default(now())
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, createdAt])
+  @@index([userId])
+}
+
+model SafetyReport {
+  id             String       @id @default(cuid())
+  reporterId     String
+  reportedUserId String?
+  groupId        String?
+  eventId        String?
+  reason         String
+  details        String?
+  status         ReportStatus @default(OPEN)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  reporter       User         @relation("reportsMade", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser   User?        @relation("reportsReceived", fields: [reportedUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([reporterId])
+  @@index([reportedUserId])
+}
+
+model UserBlock {
+  id            String   @id @default(cuid())
+  blockerId     String
+  blockedUserId String
+  createdAt     DateTime @default(now())
+  blocker       User     @relation("blocksMade", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedUser   User     @relation("blockedBy", fields: [blockedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedUserId])
+  @@index([blockedUserId])
+}
+
+model EventAttendance {
+  id        String           @id @default(cuid())
+  eventId   String
+  userId    String
+  status    AttendanceStatus
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  event     Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId, status])
+  @@index([userId])
+}
+
+model InviteLink {
+  id        String    @id @default(cuid())
+  groupId   String
+  createdById String
+  token     String    @unique
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  usedAt    DateTime?
+  group     Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdBy User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@index([createdById])
 }
