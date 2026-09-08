@@ -11,6 +11,7 @@ import {
   RefreshControl,
   SafeAreaView,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -52,9 +53,19 @@ type GroupDetailData = {
   membership: { id: string; status: string } | null;
 };
 type EventDetailData = {
-  event: EventItem & { group: { id: string; title: string } };
+  event: EventItem & {
+    group: { id: string; title: string };
+    comments: EventComment[];
+  };
   membership: { id: string; status: string } | null;
+  attendance: { id: string; status: string } | null;
   canSubmitFeedback: boolean;
+};
+type EventComment = {
+  id: string;
+  body: string;
+  createdAt: string;
+  user: { id: string; name: string; preference?: { photoUrl?: string | null } | null };
 };
 type NotificationItem = {
   id: string;
@@ -181,7 +192,7 @@ function Splash() {
 }
 
 function AuthScreen({ onAuthed }: { onAuthed: (user: User) => void }) {
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("maya@example.com");
   const [password, setPassword] = useState("RunnerPass123!");
@@ -190,6 +201,12 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: User) => void }) {
   async function submit() {
     setBusy(true);
     try {
+      if (mode === "forgot") {
+        await api("/api/mobile/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) });
+        Alert.alert("Check your email", "If that account exists, a reset link has been sent.");
+        setMode("login");
+        return;
+      }
       const nextUser = mode === "login" ? await login(email, password) : await signup(name, email, password);
       onAuthed(nextUser);
     } catch (error) {
@@ -216,9 +233,12 @@ function AuthScreen({ onAuthed }: { onAuthed: (user: User) => void }) {
             </View>
             {mode === "signup" ? <Input label="Name" value={name} onChangeText={setName} /> : null}
             <Input label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-            <Input label="Password" value={password} onChangeText={setPassword} secureTextEntry />
+            {mode !== "forgot" ? <Input label="Password" value={password} onChangeText={setPassword} secureTextEntry /> : null}
             <Pressable style={styles.primaryButton} onPress={submit} disabled={busy}>
-              <Text style={styles.primaryText}>{busy ? "Working..." : mode === "login" ? "Log in" : "Create account"}</Text>
+              <Text style={styles.primaryText}>{busy ? "Working..." : mode === "login" ? "Log in" : mode === "signup" ? "Create account" : "Send reset link"}</Text>
+            </Pressable>
+            <Pressable style={styles.ghostButton} onPress={() => setMode(mode === "forgot" ? "login" : "forgot")}>
+              <Text style={styles.ghostText}>{mode === "forgot" ? "Back to login" : "Forgot password?"}</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -333,11 +353,16 @@ function NotificationsScreen({ onOpenGroup, onOpenEvent }: { onOpenGroup: (group
 
 function GroupsScreen({ onOpenGroup }: { onOpenGroup: (groupId: string) => void }) {
   const [groupsList, setGroupsList] = useState<Group[]>([]);
+  const [city, setCity] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const load = useCallback(async () => {
-    const body = await api<{ groups: Group[] }>("/api/mobile/groups");
+    const params = new URLSearchParams();
+    if (city.trim()) params.set("city", city.trim());
+    if (neighborhood.trim()) params.set("neighborhood", neighborhood.trim());
+    const body = await api<{ groups: Group[] }>(`/api/mobile/groups${params.toString() ? `?${params}` : ""}`);
     setGroupsList(body.groups);
-  }, []);
+  }, [city, neighborhood]);
 
   useEffect(() => {
     void load().catch((error) => Alert.alert("Groups error", error.message));
@@ -350,6 +375,14 @@ function GroupsScreen({ onOpenGroup }: { onOpenGroup: (groupId: string) => void 
     >
       <Text style={styles.title}>Local groups</Text>
       <Text style={styles.muted}>Browse small crews and request to join when one fits.</Text>
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Location filters</Text>
+        <Input label="City" value={city} onChangeText={setCity} />
+        <Input label="Neighborhood" value={neighborhood} onChangeText={setNeighborhood} />
+        <Pressable style={styles.secondaryButton} onPress={load}>
+          <Text style={styles.secondaryText}>Apply filters</Text>
+        </Pressable>
+      </View>
       {groupsList.map((group) => <GroupCard key={group.id} group={group} onJoined={load} onOpen={onOpenGroup} />)}
     </ScrollView>
   );
@@ -360,6 +393,7 @@ function GroupDetailScreen({ groupId, onBack, onOpenEvent }: { groupId: string; 
   const [busy, setBusy] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteBusy, setInviteBusy] = useState(false);
+  const [linkBusy, setLinkBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -397,6 +431,18 @@ function GroupDetailScreen({ groupId, onBack, onOpenEvent }: { groupId: string; 
       Alert.alert("Unable to invite", error instanceof Error ? error.message : "Try again.");
     } finally {
       setInviteBusy(false);
+    }
+  }
+
+  async function shareInviteLink() {
+    setLinkBusy(true);
+    try {
+      const body = await api<{ url: string }>(`/api/mobile/groups/${groupId}/invite-link`, { method: "POST" });
+      await Share.share({ message: `Join me on CrewGoals: ${body.url}` });
+    } catch (error) {
+      Alert.alert("Unable to create link", error instanceof Error ? error.message : "Try again.");
+    } finally {
+      setLinkBusy(false);
     }
   }
 
@@ -457,6 +503,9 @@ function GroupDetailScreen({ groupId, onBack, onOpenEvent }: { groupId: string; 
           <Pressable style={styles.primaryButton} onPress={inviteFriend} disabled={inviteBusy || !inviteEmail.trim()}>
             <Text style={styles.primaryText}>{inviteBusy ? "Sending invite..." : "Send invite"}</Text>
           </Pressable>
+          <Pressable style={styles.secondaryButton} onPress={shareInviteLink} disabled={linkBusy}>
+            <Text style={styles.secondaryText}>{linkBusy ? "Creating link..." : "Share invite link"}</Text>
+          </Pressable>
         </View>
       ) : null}
 
@@ -477,6 +526,9 @@ function EventDetailScreen({ eventId, onBack }: { eventId: string; onBack: () =>
   const [wouldAttendAgain, setWouldAttendAgain] = useState(true);
   const [wouldInviteFriend, setWouldInviteFriend] = useState(true);
   const [comment, setComment] = useState("");
+  const [newComment, setNewComment] = useState("");
+  const [reportReason, setReportReason] = useState("");
+  const [reportDetails, setReportDetails] = useState("");
 
   const load = useCallback(async () => {
     const body = await api<EventDetailData>(`/api/mobile/events/${eventId}`);
@@ -510,9 +562,62 @@ function EventDetailScreen({ eventId, onBack }: { eventId: string; onBack: () =>
     }
   }
 
+  async function postComment() {
+    if (!newComment.trim()) return;
+    setBusy(true);
+    try {
+      await api(`/api/mobile/events/${eventId}/comments`, {
+        method: "POST",
+        body: JSON.stringify({ body: newComment })
+      });
+      setNewComment("");
+      await load();
+    } catch (error) {
+      Alert.alert("Unable to comment", error instanceof Error ? error.message : "Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function reportEvent() {
+    if (!reportReason.trim()) {
+      Alert.alert("Reason required", "Add a short reason before submitting a report.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await api("/api/mobile/safety/report", {
+        method: "POST",
+        body: JSON.stringify({ eventId, groupId: event.groupId, reason: reportReason, details: reportDetails })
+      });
+      setReportReason("");
+      setReportDetails("");
+      Alert.alert("Report sent", "An admin can review this from the reports panel.");
+    } catch (error) {
+      Alert.alert("Unable to report", error instanceof Error ? error.message : "Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function blockUser(userId: string) {
+    setBusy(true);
+    try {
+      await api("/api/mobile/safety/block", {
+        method: "POST",
+        body: JSON.stringify({ blockedUserId: userId })
+      });
+      Alert.alert("User blocked", "This block is saved for admin/safety review.");
+    } catch (error) {
+      Alert.alert("Unable to block", error instanceof Error ? error.message : "Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!data) return <Splash />;
 
-  const { event, membership, canSubmitFeedback } = data;
+  const { event, membership, attendance, canSubmitFeedback } = data;
 
   return (
     <ScrollView
@@ -529,6 +634,7 @@ function EventDetailScreen({ eventId, onBack }: { eventId: string; onBack: () =>
         <View style={styles.chips}>
           <Text style={styles.chip}>{event.status.toLowerCase()}</Text>
           {membership ? <Text style={styles.chip}>Your status: {membership.status.toLowerCase()}</Text> : null}
+          {attendance ? <Text style={styles.chip}>Attendance: {attendance.status.toLowerCase()}</Text> : null}
         </View>
         <Text style={styles.description}>{event.description}</Text>
         <View style={styles.detailGrid}>
@@ -538,6 +644,35 @@ function EventDetailScreen({ eventId, onBack }: { eventId: string; onBack: () =>
           <DetailItem label="Ends" value={new Date(event.endTime).toLocaleString()} />
           <DetailItem label="Host" value={event.hostName} />
         </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Event comments</Text>
+        {event.comments.length ? event.comments.map((item) => (
+          <View key={item.id} style={styles.commentBox}>
+            <View style={styles.rowBetween}>
+              <Text style={styles.statusTitle}>{item.user.name}</Text>
+              <Pressable onPress={() => void blockUser(item.user.id)} disabled={busy}>
+                <Text style={styles.linkText}>Block</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.description}>{item.body}</Text>
+            <Text style={styles.muted}>{new Date(item.createdAt).toLocaleString()}</Text>
+          </View>
+        )) : <Text style={styles.empty}>No comments yet.</Text>}
+        <Input label="Add comment" value={newComment} onChangeText={setNewComment} multiline />
+        <Pressable style={styles.secondaryButton} onPress={postComment} disabled={busy || !newComment.trim()}>
+          <Text style={styles.secondaryText}>Post comment</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Safety</Text>
+        <Input label="Report reason" value={reportReason} onChangeText={setReportReason} />
+        <Input label="Details" value={reportDetails} onChangeText={setReportDetails} multiline />
+        <Pressable style={styles.secondaryButton} onPress={reportEvent} disabled={busy || !reportReason.trim()}>
+          <Text style={styles.secondaryText}>Submit report</Text>
+        </Pressable>
       </View>
 
       <View style={styles.card}>
@@ -611,6 +746,7 @@ function ProfileScreen({ user, onSaved }: { user: User; onSaved: (user: User) =>
       <SingleChoice label="Age range" required options={ageRanges} value={form.ageRange} onChange={(value) => setForm((current) => ({ ...current, ageRange: value }))} />
       <Input label="City" required value={form.city} onChangeText={(value) => setForm((current) => ({ ...current, city: value }))} />
       <Input label="Neighborhood" required value={form.neighborhood} onChangeText={(value) => setForm((current) => ({ ...current, neighborhood: value }))} />
+      <Input label="Profile photo URL" value={form.photoUrl ?? ""} onChangeText={(value) => setForm((current) => ({ ...current, photoUrl: value }))} />
       <ChoiceGroup label="Goals" required helper="Choose at least one." options={goals} selected={form.goals} onChange={(values) => setForm((current) => ({ ...current, goals: values }))} />
       <ChoiceGroup label="Activities" required helper="Choose at least one." options={activities} selected={form.activities} onChange={(values) => setForm((current) => ({ ...current, activities: values }))} />
       <ChoiceGroup label="Availability" required helper="Choose at least one." options={availability} selected={form.availability} onChange={(values) => setForm((current) => ({ ...current, availability: values }))} />
@@ -641,6 +777,7 @@ function defaultPreference(name: string): Preference {
     preferredGroupSize: 8,
     vibe: "beginner-friendly",
     comfortPreference: "mixed group",
+    photoUrl: "",
     phone: "",
     bio: ""
   };
@@ -663,6 +800,7 @@ function normalizePreference(input: Partial<Preference>): Preference {
     preferredGroupSize: Number.isInteger(input.preferredGroupSize) ? input.preferredGroupSize as number : defaults.preferredGroupSize,
     vibe: input.vibe || defaults.vibe,
     comfortPreference: input.comfortPreference || defaults.comfortPreference,
+    photoUrl: input.photoUrl ?? "",
     phone: input.phone ?? "",
     bio: input.bio ?? ""
   };
@@ -935,6 +1073,7 @@ const styles = StyleSheet.create({
   scoreText: { color: "#426653", fontWeight: "900" },
   scoreTextActive: { color: "#fff" },
   statusBox: { marginTop: 16, borderRadius: 8, backgroundColor: "#f8f7f0", padding: 12 },
+  commentBox: { marginTop: 12, borderTopColor: "#ebe7dc", borderTopWidth: 1, paddingTop: 12 },
   statusTitle: { color: "#17211d", fontWeight: "900" },
   choice: { borderColor: "#d7d0c4", borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 9, backgroundColor: "#fff" },
   choiceActive: { backgroundColor: "#17211d", borderColor: "#17211d" },

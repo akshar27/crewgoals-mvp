@@ -54,6 +54,7 @@ export type Preference = {
   preferredGroupSize: number;
   vibe: string;
   comfortPreference: string;
+  photoUrl?: string;
   phone?: string;
   bio?: string;
 };

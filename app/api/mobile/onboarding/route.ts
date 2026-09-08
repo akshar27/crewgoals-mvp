@@ -16,6 +16,7 @@ export async function PUT(request: NextRequest) {
   const { name, ...preferenceInput } = parsed.data;
   const preferenceData = {
     ...preferenceInput,
+    photoUrl: cleanText(preferenceInput.photoUrl),
     phone: cleanText(preferenceInput.phone),
     bio: cleanText(preferenceInput.bio)
   };

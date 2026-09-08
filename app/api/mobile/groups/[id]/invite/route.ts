@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMobileUser } from "@/lib/auth";
+import { sendEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { notifyUser } from "@/lib/notifications";
 
@@ -30,6 +31,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     title: `${user.name} invited you to a group`,
     body: `Check out ${group.title}.`,
     data: { groupId: group.id, invitedByUserId: user.id }
+  });
+  await sendEmail({
+    userId: friend.id,
+    to: friend.email,
+    subject: `${user.name} invited you to ${group.title}`,
+    body: `Open CrewGoals to view ${group.title} and request to join.`
   });
 
   return NextResponse.json({ ok: true });

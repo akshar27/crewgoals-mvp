@@ -11,6 +11,15 @@ export const loginSchema = z.object({
   password: z.string().min(8).max(100)
 });
 
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().email().max(180)
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().trim().min(20),
+  password: z.string().min(8).max(100)
+});
+
 export const onboardingSchema = z.object({
   name: z.string().trim().min(2).max(80),
   ageRange: z.string().min(1).max(40),
@@ -24,8 +33,21 @@ export const onboardingSchema = z.object({
   preferredGroupSize: z.coerce.number().int().min(3).max(20),
   vibe: z.string().min(1).max(80),
   comfortPreference: z.string().min(1).max(80),
+  photoUrl: z.string().trim().url().max(500).optional().or(z.literal("")),
   phone: z.string().trim().max(30).optional(),
   bio: z.string().trim().max(500).optional()
+});
+
+export const commentSchema = z.object({
+  body: z.string().trim().min(1).max(500)
+});
+
+export const reportSchema = z.object({
+  reportedUserId: z.string().trim().optional(),
+  groupId: z.string().trim().optional(),
+  eventId: z.string().trim().optional(),
+  reason: z.string().trim().min(3).max(120),
+  details: z.string().trim().max(1000).optional()
 });
 
 export const groupSchema = z.object({

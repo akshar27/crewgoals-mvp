@@ -9,8 +9,19 @@ export const revalidate = 0;
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await getMobileUser(request);
   const { id } = await params;
-  const event = await prisma.event.findUnique({ where: { id }, include: { group: true } });
+  const event = await prisma.event.findUnique({
+    where: { id },
+    include: {
+      group: true,
+      comments: {
+        include: { user: { select: { id: true, name: true, preference: { select: { photoUrl: true } } } } },
+        orderBy: { createdAt: "asc" },
+        take: 100
+      },
+      attendance: { where: user ? { userId: user.id } : undefined }
+    }
+  });
   if (!event) return NextResponse.json({ error: "Event not found." }, { status: 404 });
   const membership = user ? await prisma.groupMember.findUnique({ where: { userId_groupId: { userId: user.id, groupId: event.groupId } } }) : null;
-  return NextResponse.json({ event, membership, canSubmitFeedback: canSubmitFeedback(membership, event) }, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ event, membership, attendance: event.attendance[0] ?? null, canSubmitFeedback: canSubmitFeedback(membership, event) }, { headers: { "Cache-Control": "no-store" } });
 }

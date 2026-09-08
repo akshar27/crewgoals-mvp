@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { PageShell, Panel, SubmitButton, Badge } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
+import { sendEmail } from "@/lib/email";
 import { notifyUser } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 
@@ -37,6 +38,12 @@ async function updateStatus(formData: FormData) {
       body: `You're approved for ${membership.group.title}.`,
       data: { groupId: membership.groupId }
     });
+    await sendEmail({
+      userId: membership.userId,
+      to: membership.user.email,
+      subject: "Your CrewGoals group request was approved",
+      body: `You're approved for ${membership.group.title}. Open CrewGoals to see the group and upcoming events.`
+    });
   }
 
   if (nextStatus === "ATTENDED") {
@@ -46,6 +53,12 @@ async function updateStatus(formData: FormData) {
       title: "Attendance marked",
       body: `You were marked attended for ${membership.group.title}. Feedback may be available after the event is completed.`,
       data: { groupId: membership.groupId }
+    });
+    await sendEmail({
+      userId: membership.userId,
+      to: membership.user.email,
+      subject: "Your attendance was marked",
+      body: `You were marked attended for ${membership.group.title}. If the event is completed, open CrewGoals to submit feedback.`
     });
   }
 

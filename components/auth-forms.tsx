@@ -83,6 +83,9 @@ export function LoginForm() {
       <button className="w-full rounded-md bg-ink px-4 py-2 font-semibold text-white hover:bg-moss" disabled={form.formState.isSubmitting}>
         {form.formState.isSubmitting ? "Logging in..." : "Log in"}
       </button>
+      <p className="text-center text-sm text-stone-600">
+        <Link className="font-semibold text-moss" href="/forgot-password">Forgot password?</Link>
+      </p>
     </form>
   );
 }

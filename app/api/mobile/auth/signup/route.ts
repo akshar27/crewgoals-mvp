@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { NextRequest, NextResponse } from "next/server";
 import { createAuthToken } from "@/lib/auth";
+import { sendEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { signupSchema } from "@/lib/validation";
@@ -23,6 +24,13 @@ export async function POST(request: NextRequest) {
       passwordHash: await bcrypt.hash(parsed.data.password, 12)
     },
     select: { id: true, email: true, name: true, role: true }
+  });
+
+  await sendEmail({
+    userId: user.id,
+    to: user.email,
+    subject: "Welcome to CrewGoals",
+    body: "Welcome to CrewGoals. Complete your profile, find a local group, and request to join when one feels right."
   });
 
   return NextResponse.json({ user, token: await createAuthToken({ userId: user.id, role: user.role }) });
