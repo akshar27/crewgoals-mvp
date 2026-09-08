@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getMobileUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { siteUrl } from "@/lib/site";
 import { isActiveMember } from "@/services/member-access";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30)
     }
   });
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  return NextResponse.json({ url: `${baseUrl.replace(/\/+$/, "")}/invite/${invite.token}` });
+  return NextResponse.json({ url: siteUrl(`/invite/${invite.token}`) });
 }
