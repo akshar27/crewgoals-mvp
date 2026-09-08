@@ -1,7 +1,9 @@
 import { revalidatePath } from "next/cache";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PageShell, Panel, SubmitButton, Badge } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
+import { sendEmail } from "@/lib/email";
 import { notifyUsers } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { cleanText, eventSchema, formValues } from "@/lib/validation";
@@ -106,6 +108,7 @@ export default async function AdminEventsPage({ searchParams }: { searchParams: 
               <input type="hidden" name="id" value={event.id} />
               <button className="text-sm font-semibold text-moss">Send reminder</button>
             </form>
+            <Link className="mt-3 inline-block text-sm font-semibold text-moss" href={`/admin/events/${event.id}/attendance`}>Manage attendance</Link>
             <form action={deleteEvent} className="mt-3"><input type="hidden" name="id" value={event.id} /><button className="text-sm font-semibold text-red-700">Delete event</button></form>
           </Panel>
         ))}
@@ -125,7 +128,7 @@ async function notifyGroupMembers(
 ) {
   const memberships = await prisma.groupMember.findMany({
     where: { groupId, status: { in: ["APPROVED", "JOINED", "ATTENDED"] } },
-    select: { userId: true }
+    include: { user: true }
   });
 
   await notifyUsers(
@@ -134,6 +137,14 @@ async function notifyGroupMembers(
       ...message
     }))
   );
+  for (const membership of memberships) {
+    await sendEmail({
+      userId: membership.userId,
+      to: membership.user.email,
+      subject: message.title,
+      body: message.body
+    });
+  }
 }
 
 function toLocalValue(date?: Date) {
