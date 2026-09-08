@@ -6,10 +6,13 @@ Production-minded MVP for a goal-based local group matching platform. The first 
 
 - Next.js App Router, TypeScript, Tailwind CSS
 - PostgreSQL, Prisma ORM, migrations and seed data
-- Secure email/password auth with bcrypt password hashing and HTTP-only signed session cookies
-- Zod validation on server-side mutations
+- Secure email/password auth with bcrypt hashing and HTTP-only signed session cookies
+- Password reset via single-use, hashed, time-limited tokens; transactional email (Resend, logged to `EmailLog`)
+- Trust & safety: user reports + blocking, admin review queue
+- Group engagement: members-only event comments, shareable invite links, event attendance
+- Zod validation on every server-side mutation; rate limiting on auth endpoints
 - React Hook Form for auth forms
-- Vitest unit tests for matching, capacity, duplicate joins, admin authorization, and feedback eligibility
+- Vitest unit tests for matching, capacity, duplicate joins, admin auth, feedback eligibility, token validity, member access, and safety rules (22 tests)
 
 ## Setup
 
@@ -30,6 +33,10 @@ Set:
 - `DATABASE_URL`: PostgreSQL connection string
 - `AUTH_SECRET`: at least 32 random characters
 - `NEXT_PUBLIC_APP_URL`: local or deployed app URL
+- `RESEND_API_KEY` (optional): send real email. Without it, messages are still
+  recorded in `EmailLog` and logged to the console — password reset works end
+  to end in dev by copying the link from the logs.
+- `EMAIL_FROM` (optional): defaults to `CrewGoals <onboarding@resend.dev>`
 
 3. Create and seed the database:
 
@@ -60,14 +67,16 @@ npm test
 ## Routes
 
 - `/` landing page
-- `/signup`, `/login`
+- `/signup`, `/login`, `/forgot-password`, `/reset-password`
 - `/onboarding`
 - `/dashboard`
 - `/groups`, `/groups/[id]`
 - `/events/[id]`
 - `/feedback/[eventId]`
+- `/invite/[token]` — group invite link landing
 - `/settings/profile`
-- `/admin`, `/admin/users`, `/admin/groups`, `/admin/events`, `/admin/feedback`
+- `/terms`, `/privacy`
+- `/admin`, `/admin/users`, `/admin/groups`, `/admin/events`, `/admin/events/[id]/attendance`, `/admin/feedback`, `/admin/reports`
 
 ## Mobile App
 
@@ -113,7 +122,9 @@ The mobile MVP includes login/signup, onboarding profile, dashboard recommendati
 
 Passwords are hashed with bcrypt and never stored in plain text. Sessions are signed, HTTP-only cookies. Admin routes call `requireAdmin`, user routes call `requireUser`, and all mutations validate input with Zod. Group joins run in a transaction, prevent duplicate requests through a unique index, and reject full or closed groups. Feedback is limited to users marked `ATTENDED` for completed events.
 
-The `services/matching.ts` recommendation function is intentionally separate from Prisma and UI code so it can be swapped for AI matching later.
+Password reset tokens are random 32-byte values stored only as a SHA-256 hash, single-use, and expire after one hour; the forgot-password endpoint is rate limited and does not reveal whether an email exists. Event comments and invite-link creation are gated to accepted group members.
+
+Pure business rules live in `services/` (`matching`, `group-rules`, `feedback-rules`, `tokens`, `member-access`, `safety-rules`), separate from Prisma and UI so they are unit-tested directly and can be swapped — e.g. `services/matching.ts` for an AI matcher later.
 
 ## Deployment Notes
 
