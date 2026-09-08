@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getMobileUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isActiveMember } from "@/services/member-access";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
   const membership = await prisma.groupMember.findUnique({ where: { userId_groupId: { userId: user.id, groupId: id } } });
-  if (!membership || !["APPROVED", "JOINED", "ATTENDED"].includes(membership.status)) {
+  if (!isActiveMember(membership?.status)) {
     return NextResponse.json({ error: "Join this group before creating invite links." }, { status: 403 });
   }
 

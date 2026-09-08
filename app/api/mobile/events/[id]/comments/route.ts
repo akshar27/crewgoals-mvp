@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getMobileUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { commentSchema } from "@/lib/validation";
+import { isActiveMember } from "@/services/member-access";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!event) return NextResponse.json({ error: "Event not found." }, { status: 404 });
 
   const membership = await prisma.groupMember.findUnique({ where: { userId_groupId: { userId: user.id, groupId: event.groupId } } });
-  if (!membership || !["APPROVED", "JOINED", "ATTENDED"].includes(membership.status)) {
+  if (!isActiveMember(membership?.status)) {
     return NextResponse.json({ error: "Join this group before commenting." }, { status: 403 });
   }
 

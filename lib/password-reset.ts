@@ -2,6 +2,7 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { isSingleUseTokenUsable } from "@/services/tokens";
 
 const RESET_TTL_MS = 1000 * 60 * 60;
 
@@ -29,7 +30,7 @@ export async function requestPasswordReset(email: string) {
 
 export async function resetPassword(token: string, password: string) {
   const record = await prisma.passwordResetToken.findUnique({ where: { tokenHash: hashToken(token) } });
-  if (!record || record.usedAt || record.expiresAt < new Date()) return false;
+  if (!record || !isSingleUseTokenUsable(record)) return false;
 
   await prisma.$transaction([
     prisma.user.update({

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageShell, Panel, ButtonLink } from "@/components/ui";
 import { prisma } from "@/lib/prisma";
+import { isSingleUseTokenUsable } from "@/services/tokens";
 
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -9,7 +10,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     where: { token },
     include: { group: { include: { goal: true, activity: true } }, createdBy: true }
   });
-  if (!invite || invite.usedAt || (invite.expiresAt && invite.expiresAt < new Date())) notFound();
+  if (!invite || !isSingleUseTokenUsable(invite)) notFound();
 
   return (
     <PageShell>
