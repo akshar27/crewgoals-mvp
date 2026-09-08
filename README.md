@@ -135,6 +135,19 @@ Universal links (opening `https://…/invite/<token>` straight into the app) nee
 the iOS Team ID and Android signing fingerprint are known from an EAS build. The
 custom scheme and Android intent filter are already configured in `app.json`.
 
+### Build for a device (EAS)
+
+```bash
+cd mobile
+npx eas login
+npm run build:android:preview   # internal-distribution APK
+npm run build:ios:preview       # needs an Apple Developer account
+```
+
+`eas.json` points the preview/production builds at
+`https://crewgoals-mvp-zeta.vercel.app`; change `EXPO_PUBLIC_API_URL` there for a
+different backend.
+
 ## Security And Reliability Notes
 
 Passwords are hashed with bcrypt and never stored in plain text. Sessions are signed, HTTP-only cookies. Admin routes call `requireAdmin`, user routes call `requireUser`, and all mutations validate input with Zod. Group joins run in a transaction, prevent duplicate requests through a unique index, and reject full or closed groups. Feedback is limited to users marked `ATTENDED` for completed events.
