@@ -128,7 +128,20 @@ Pure business rules live in `services/` (`matching`, `group-rules`, `feedback-ru
 
 ## Deployment Notes
 
-The recommended MVP deployment path is hosted PostgreSQL plus Vercel:
+### Quick path (Vercel CLI)
+
+```bash
+npm i -g vercel
+vercel login
+vercel link                                   # create/link the project
+vercel env add DATABASE_URL production         # paste your Neon direct URL
+vercel env add AUTH_SECRET production           # openssl rand -base64 48
+vercel env add NEXT_PUBLIC_APP_URL production   # https://<project>.vercel.app
+vercel --prod                                   # runs vercel-build (migrate deploy + next build)
+DATABASE_URL="postgresql://..." npm run db:seed # once
+```
+
+Detailed walk-through:
 
 1. Create a hosted PostgreSQL database with Neon, Supabase, Railway, or another managed provider.
 
@@ -137,12 +150,14 @@ The recommended MVP deployment path is hosted PostgreSQL plus Vercel:
 3. Add these environment variables in Vercel:
 
 ```bash
-DATABASE_URL="postgresql://..."
-AUTH_SECRET="generate-a-long-random-secret"
-NEXT_PUBLIC_APP_URL="https://your-vercel-app.vercel.app"
+DATABASE_URL="postgresql://..."        # required
+AUTH_SECRET="generate-a-long-random-secret"   # required, >= 32 chars
+NEXT_PUBLIC_APP_URL="https://your-vercel-app.vercel.app"   # required
+RESEND_API_KEY="re_..."                # optional; without it, email is logged not sent
+EMAIL_FROM="CrewGoals <you@yourdomain>" # optional
 ```
 
-Generate a local secret with:
+Generate the secret with:
 
 ```bash
 openssl rand -base64 48
