@@ -3,10 +3,20 @@ import Link from "next/link";
 import { LogOut, ShieldCheck, UserRound } from "lucide-react";
 import "./globals.css";
 import { getCurrentUser } from "@/lib/auth";
+import { SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "CrewGoals",
-  description: "Small local groups matched by goals, schedule, level, and vibe."
+  metadataBase: new URL(siteUrl()),
+  title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    url: siteUrl(),
+  },
+  twitter: { card: "summary_large_image", title: SITE_NAME, description: SITE_DESCRIPTION },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

@@ -14,6 +14,7 @@ import {
 import { useAuth } from "../../src/hooks/useAuth";
 import { useSaveProfile } from "../../src/hooks/mutations";
 import { useProfile } from "../../src/hooks/queries";
+import { shareApp } from "../../src/share";
 import {
   AGE_RANGES,
   ACTIVITIES,
@@ -80,6 +81,7 @@ export default function ProfileScreen() {
       <Input label="Bio" value={form.bio ?? ""} onChangeText={(v) => patch({ bio: v })} multiline />
 
       <PrimaryButton label={save.isPending ? "Saving..." : "Save profile"} onPress={submit} disabled={save.isPending} />
+      <SecondaryButton label="Tell a friend about CrewGoals" onPress={shareApp} />
       <SecondaryButton label="Sign out" onPress={signOut} />
     </ScreenScroll>
   );

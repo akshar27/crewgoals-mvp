@@ -6,6 +6,7 @@ import { DetailItem, Input, PrimaryButton, ScreenScroll, SecondaryButton, Sectio
 import { useCreateInviteLink, useInviteFriend, useJoinGroup } from "../../src/hooks/mutations";
 import { useGroup } from "../../src/hooks/queries";
 import { isActiveMember } from "../../src/rules";
+import { shareGroup } from "../../src/share";
 import { styles } from "../../src/theme";
 
 export default function GroupDetailScreen() {
@@ -98,6 +99,7 @@ export default function GroupDetailScreen() {
               disabled={join.isPending || group.status !== "OPEN"}
             />
           )}
+          <SecondaryButton label="Share group" onPress={() => shareGroup(group)} />
         </View>
 
         {canInvite ? (

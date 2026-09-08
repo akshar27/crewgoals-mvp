@@ -1,5 +1,7 @@
 import { CalendarCheck, MapPin, ShieldCheck, UsersRound } from "lucide-react";
 import { ButtonLink, PageShell, Panel } from "@/components/ui";
+import { ShareButton } from "@/components/share-button";
+import { SITE_DESCRIPTION, siteUrl } from "@/lib/site";
 
 export default function HomePage() {
   return (
@@ -16,6 +18,7 @@ export default function HomePage() {
           <div className="mt-8 flex flex-wrap gap-3">
             <ButtonLink href="/signup">Join a group</ButtonLink>
             <ButtonLink href="/groups">Browse groups</ButtonLink>
+            <ShareButton url={siteUrl("/")} title="CrewGoals" text={SITE_DESCRIPTION} label="Tell a friend" />
           </div>
         </div>
         <div className="rounded-lg border border-stone-200 bg-white p-5 shadow-soft">

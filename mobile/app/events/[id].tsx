@@ -13,6 +13,7 @@ import {
 } from "../../src/components/ui";
 import { useBlockUser, usePostComment, useReport, useSubmitFeedback } from "../../src/hooks/mutations";
 import { useEvent } from "../../src/hooks/queries";
+import { shareEvent } from "../../src/share";
 import { styles } from "../../src/theme";
 
 export default function EventDetailScreen() {
@@ -103,6 +104,7 @@ export default function EventDetailScreen() {
       <ScreenScroll onRefresh={refetch} refreshing={isRefetching}>
         <Text style={styles.title}>{event.title}</Text>
         <Text style={styles.muted}>{event.group.title}</Text>
+        <SecondaryButton label="Share event" onPress={() => shareEvent(event)} />
 
         <View style={styles.card}>
           <View style={styles.chips}>
