@@ -2,6 +2,7 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
+import { siteUrl } from "@/lib/site";
 import { isSingleUseTokenUsable } from "@/services/tokens";
 
 const RESET_TTL_MS = 1000 * 60 * 60;
@@ -18,8 +19,7 @@ export async function requestPasswordReset(email: string) {
     data: { userId: user.id, tokenHash, expiresAt }
   });
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const resetUrl = `${baseUrl.replace(/\/+$/, "")}/reset-password?token=${token}`;
+  const resetUrl = siteUrl(`/reset-password?token=${token}`);
   await sendEmail({
     userId: user.id,
     to: user.email,
