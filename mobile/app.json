@@ -9,6 +9,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.crewgoals.mobile",
+      "associatedDomains": ["applinks:crewgoals-mvp-zeta.vercel.app"],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -17,7 +18,15 @@
       "package": "com.crewgoals.mobile",
       "adaptiveIcon": {
         "backgroundColor": "#dff4e9"
-      }
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [{ "scheme": "https", "host": "crewgoals-mvp-zeta.vercel.app", "pathPrefix": "/invite" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "plugins": [
       [
@@ -25,8 +34,12 @@
         {
           "color": "#426653"
         }
-      ]
+      ],
+      "expo-router"
     ],
+    "experiments": {
+      "typedRoutes": true
+    },
     "extra": {
       "apiUrl": "http://localhost:3000",
       "eas": {
