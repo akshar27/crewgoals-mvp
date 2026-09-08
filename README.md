@@ -80,7 +80,16 @@ npm test
 
 ## Mobile App
 
-The `mobile/` folder contains an Expo React Native app that runs on iPhone and Android from one codebase. It uses the Next.js app as its backend through `/api/mobile/*` JSON endpoints and stores the mobile auth token in Expo Secure Store.
+The `mobile/` folder is an Expo React Native app for iPhone and Android from one
+codebase, talking to the Next.js app through `/api/mobile/*` JSON endpoints (auth
+token in Expo Secure Store).
+
+**Architecture:** `expo-router` file-based routing (`app/`), TanStack Query for
+all data fetching + cache invalidation, and a layered `src/` (`api/`, `hooks/`,
+`components/`, `theme`, `preference`, `rules`). Group **invite links deep-link
+into the app** — `crewgoals://invite/<token>` and the `/invite/<token>` Vercel
+URL both open `app/invite/[token].tsx`. `npm test` in `mobile/` runs the jest-expo
+suite (api client, preference + rules helpers).
 
 Install mobile dependencies:
 
@@ -116,7 +125,15 @@ npm run mobile:ios
 npm run mobile:android
 ```
 
-The mobile MVP includes login/signup, onboarding profile, dashboard recommendations, group browsing, join requests, upcoming events, and feedback-ready API support. Admin operations remain optimized for the web dashboard.
+The mobile app covers login/signup, password reset, matching profile, dashboard
+recommendations, group browsing + filters, join requests, invite links + deep
+linking, event detail with comments, safety reporting / blocking, feedback, push
+notifications, and alerts. Admin operations stay on the web dashboard.
+
+Universal links (opening `https://…/invite/<token>` straight into the app) need
+`apple-app-site-association` and `assetlinks.json` served from the web app once
+the iOS Team ID and Android signing fingerprint are known from an EAS build. The
+custom scheme and Android intent filter are already configured in `app.json`.
 
 ## Security And Reliability Notes
 
